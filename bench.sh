@@ -1,5 +1,5 @@
 #!/bin/bash
-SC_VERSION="v2023-03-24"
+SC_VERSION="v2023-05-24"
 
 run_code() {
 clear  
@@ -15,6 +15,50 @@ AR_START_TIME=$(date +%s)
 SERVERS="https://iperf3.s3.ir-thr-at1.arvanstorage.ir/server.json"
 
 response=$(curl -s "$SERVERS")
+
+# Check which Linux distribution is installed
+if command -v lsb_release &> /dev/null; then
+    # Ubuntu, Debian, or other Debian-based distribution
+    if lsb_release -si | grep -qi "ubuntu\|debian"; then
+        PACKAGE_MANAGER="apt-get"
+    fi
+elif command -v rpm &> /dev/null; then
+    # Red Hat-based distribution
+    if rpm -q redhat-release &> /dev/null; then
+        if grep -qi "CentOS" /etc/redhat-release; then
+            PACKAGE_MANAGER="yum"
+        else
+            PACKAGE_MANAGER="dnf"
+        fi
+    # SUSE-based distribution
+    elif rpm -q sles-release &> /dev/null || rpm -q opensuse-release &> /dev/null; then
+        PACKAGE_MANAGER="zypper"
+    fi
+elif command -v pacman &> /dev/null; then
+    # Arch-based distribution
+    if grep -qi "arch" /etc/os-release; then
+        PACKAGE_MANAGER="pacman"
+    fi
+fi
+
+if ! command -v mtr &> /dev/null || ! command -v jq &> /dev/null; then
+    echo "installing prerequisites..."
+    # Install mtr and jq using the appropriate package manager
+    if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
+        sudo apt-get -qq update && sudo apt-get -qq install -y mtr jq &> /dev/null
+    elif [ "$PACKAGE_MANAGER" = "dnf" ]; then
+        sudo dnf -q -y install mtr jq &> /dev/null
+    elif [ "$PACKAGE_MANAGER" = "yum" ]; then
+        sudo yum -q -y install mtr jq &> /dev/null
+    elif [ "$PACKAGE_MANAGER" = "pacman" ]; then
+        sudo pacman -S --noconfirm mtr jq &> /dev/null
+    elif [ "$PACKAGE_MANAGER" = "zypper" ]; then
+        sudo zypper -n install mtr jq &> /dev/null
+    else
+        echo "Unknown error installing prerequisites..."
+        exit 1
+    fi
+fi
 
 IPERF_LOCS=()
 IPERF_LOCS_COUNT=$(echo $response | jq length)
@@ -219,49 +263,6 @@ if [ ! -z $JSON ]; then
     JSON_RESULT+='"uptime":'$UPTIME_S'},"net":{"ipv4":'$IPV4',"ipv6":'$IPV6'},"cpu":{"model":"'$CPU_PROC'","cores":'$CPU_CORES','
     JSON_RESULT+='"freq":"'$CPU_FREQ'","aes":'$AES',"virt":'$VIRT'},"mem":{"ram":'$TOTAL_RAM_RAW',"swap":'$TOTAL_SWAP_RAW',"disk":'$TOTAL_DISK_RAW'}'
 fi
-# Check which Linux distribution is installed
-if command -v lsb_release &> /dev/null; then
-    # Ubuntu, Debian, or other Debian-based distribution
-    if lsb_release -si | grep -qi "ubuntu\|debian"; then
-        PACKAGE_MANAGER="apt-get"
-    fi
-elif command -v rpm &> /dev/null; then
-    # Red Hat-based distribution
-    if rpm -q redhat-release &> /dev/null; then
-        if grep -qi "CentOS" /etc/redhat-release; then
-            PACKAGE_MANAGER="yum"
-        else
-            PACKAGE_MANAGER="dnf"
-        fi
-    # SUSE-based distribution
-    elif rpm -q sles-release &> /dev/null || rpm -q opensuse-release &> /dev/null; then
-        PACKAGE_MANAGER="zypper"
-    fi
-elif command -v pacman &> /dev/null; then
-    # Arch-based distribution
-    if grep -qi "arch" /etc/os-release; then
-        PACKAGE_MANAGER="pacman"
-    fi
-fi
-
-if ! command -v mtr &> /dev/null || ! command -v jq &> /dev/null; then
-    echo "installing prerequisites..."
-    # Install mtr and jq using the appropriate package manager
-    if [ "$PACKAGE_MANAGER" = "apt-get" ]; then
-        sudo apt-get -qq update && sudo apt-get -qq install -y mtr jq &> /dev/null
-    elif [ "$PACKAGE_MANAGER" = "dnf" ]; then
-        sudo dnf -q -y install mtr jq &> /dev/null
-    elif [ "$PACKAGE_MANAGER" = "yum" ]; then
-        sudo yum -q -y install mtr jq &> /dev/null
-    elif [ "$PACKAGE_MANAGER" = "pacman" ]; then
-        sudo pacman -S --noconfirm mtr jq &> /dev/null
-    elif [ "$PACKAGE_MANAGER" = "zypper" ]; then
-        sudo zypper -n install mtr jq &> /dev/null
-    else
-        echo "Unknown error installing prerequisites..."
-        exit 1
-    fi
-fi
 
 echo -e '* ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** ** *'
 echo -e '*                     Setup IPERF3                      *'
@@ -460,10 +461,10 @@ echo
     read -p "Do you want to run the code? (y/n): " answer
 
     case $answer in
-        y)
+        [Yy])
             run_code
             ;;
-        n)
+        [Nn])
             echo "Exiting the script."
             exit 0
             ;;
