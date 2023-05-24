@@ -1,0 +1,2 @@
+# BenchScript Pre-Compiled Binaries
+This directory contains all of the binaries required to run the benchmarking tests. Naturally, there is a security risk to your machine and its contents by running this script since, after all, this is just a script on the internet. You'll simply have to have confidence we don't have malicious intent. Please open an issue if the compiled version is out of date and lacking any security-related and/or performance updates.
